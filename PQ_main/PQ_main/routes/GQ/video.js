@@ -140,6 +140,7 @@ router.post('/getLtableList', function (req, res) {
 	var mode = req.body.mode;
 	var level = req.body.Difficulty;
 	var situation = req.body.situation;
+	//console.log(mode);
 	//獲取各個難度抽題數
 	var list = convertList(situation, level);
 

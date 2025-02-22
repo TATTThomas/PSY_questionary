@@ -25,6 +25,9 @@
         <br>
         <input type="button" id="buildUser" class="btn btn-primary" style="font-size:200%" value="創建新測驗者" />
         <br>
+        <br>
+        <input type="button" id="buildSuperUser" class="btn btn-primary" style="font-size:200%" value="創建新管理員" />
+        <br>
         <hr style="border:5px" />
         <input type="button" id="loadAllTable" class="btn btn-primary" style="font-size:200%" value="下載完整表格" />
         <div style="font-size:150%;display:none">
@@ -144,6 +147,25 @@
                 var tag = prompt("請輸入實驗編號標記", "A");
                 if (tag != null)
                     $.post('/Create/newUser', { ID: '<%=ID%>', password: '<%=password%>', tag: tag }, function (result) {
+                        if (result.result == "success") {
+                            $this.next("div").remove();
+                            $this.after("<div><h2>帳號 : " + result.ID + "</h2><h2>密碼 : " + result.password + "</h2></div>");
+                        }
+                        else {
+                            alert(result.result);
+                        }
+                    })
+                else {
+                    alert("請寫入編號標記");
+                    $this.next("div").remove();
+                }
+            });
+
+            $("#buildSuperUser").click(function () {
+                var $this = $(this);
+                var tag = prompt("請輸入實驗編號標記", "A");
+                if (tag != null)
+                    $.post('/Create/newSuperUser', { ID: '<%=ID%>', password: '<%=password%>', tag: tag }, function (result) {
                         if (result.result == "success") {
                             $this.next("div").remove();
                             $this.after("<div><h2>帳號 : " + result.ID + "</h2><h2>密碼 : " + result.password + "</h2></div>");

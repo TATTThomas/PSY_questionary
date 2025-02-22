@@ -98,13 +98,13 @@
 		round--;
 		var path =
 			url +
-			'?path=video/L/' +
+			'?path=video/L/' + //'test.mp4'
 			data[order[round]].human +
 			'/' +
 			data[order[round]].filepath;
 		player.src({
 			src: path,
-			type: 'video/mp4',
+			//type: 'video/mp4',
 		});
 		player.controls(false);
 		//播放時關閉控制列
@@ -113,7 +113,6 @@
 		});
 
 		$('#pass').click(function () {
-			console.log(path);
 			one +=
 				data[order[round]].filepath.replace(/_/g, '-') +
 				'_NA_NA_NA_NA_NA_NA_NA';
@@ -122,7 +121,7 @@
 				one += '~';
 				path =
 					url +
-					'?path=video/L/' +
+					'?path=video/L/' + //'test.mp4'
 					data[order[round]].human +
 					'/' +
 					data[order[round]].filepath;
@@ -146,7 +145,7 @@
 			if (round > 0) {
 				path =
 					url +
-					'?path=video/L/' +
+					'?path=video/L/' + //'test.mp4'
 					data[order[round - 1]].human +
 					'/' +
 					data[order[round - 1]].filepath;
@@ -216,33 +215,31 @@
 												localStorage.setItem('GQtype', 'L');
 												$.post(
 													'/GQ/SQ/saveData',
-													{
-														ID: ID,
-														password: password,
-														one: one,
-														group: 'NA',
-														type: 'L',
-													},
+													{ ID, password, one, group: 'NA', type: 'L' },
 													function (result, textStatus, jqXHR) {
+													  try {
 														if (textStatus == 'success') {
-															if (result.result == 'success') {
-																localStorage.removeItem('GQone');
-																// localStorage.removeItem('GQtype');
-																$('form').submit();
-															} else {
-																alert(
-																	result.result +
-																		'已紀錄資料在本電腦, 可先關閉程式, 下次開啟同系統問卷會要求上傳'
-																);
-																$('form').submit();
-															}
-														} else alert('伺服器無回應,請稍後再試');
+														  if (result.result == 'success') {
+															localStorage.removeItem('GQone');
+															$('form').submit();
+														  } else {
+															alert(
+															  `${result.result}已紀錄資料在本電腦, 可先關閉程式, 下次開啟同系統問卷會要求上傳`
+															);
+															$('form').submit();
+														  }
+														} else {
+														  alert('伺服器無回應,請稍後再試');
+														}
+													  } catch (error) {
+														console.error('回調函數內的錯誤:', error);
+														alert('處理伺服器響應時發生錯誤');
+													  }
 													}
-												).fail(() => {
-													alert(
-														'未預期錯誤.已紀錄資料在本電腦, 可先關閉程式, 下次開啟同系統問卷會要求上傳'
-													);
-												});
+												  ).fail(() => {
+													alert('未預期錯誤.已紀錄資料在本電腦, 可先關閉程式, 下次開啟同系統問卷會要求上傳');
+												  });
+												  
 											} else location.reload();
 										}
 									});

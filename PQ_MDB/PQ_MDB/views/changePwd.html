@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8" />
+    <title>心智評估與訓練系統</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <div name="Title" class="jumbotron  mb-0 ">
+            <div class="text-center  align-self-center">
+                <h1>心智評估與訓練系統</h1>
+            </div>
+        </div>
+    </header>
+    <div class="conrainer" style="color:red">
+        <br>
+        <h3 style="text-align:center">您是第一次登入, 基於安全請修改你的密碼</h3>
+        <br>
+    </div>
+    <div id="Login" style="text-align:center">
+        <input id="password" type="password" class="col-md-4" placeholder="新密碼" /><br />
+        <input id="passwordConfirm" type="password" class="col-md-4" placeholder="確認新密碼" /><br />
+        <input id="update" type="button" class="btn btn-success col-md-4" value="更新" />
+        <form action="/login" method="post">
+            <input name="ID" type="text" value="<%=ID%>" style="display:none" />
+            <input name="password" type="password" value="<%=password%>" style="display:none" />
+            <input name="goal" type="text" value="EW4" style="display:none" />
+        </form>
+    </div>
+    <script>
+        //寄出換密碼API
+        function changePassword() {
+            var Npassword = $("#passwordConfirm").val();
+            if (Npassword == $("#password").val() && Npassword != '') {
+                $.post('Update/changePassword', { ID: '<%=ID%>', password: '<%=password%>', new_password: Npassword },
+                    function (result) {
+                        console.log(result.result);
+                        if (result.result != 'success') {
+                            alert(result.result);
+                        }
+                        else {
+                            $('form').find('input[name="password"]').val(Npassword);
+                            $('form').submit();
+                        }
+                    });
+            } else {
+                $("#password").val('');
+                $("#passwordConfirm").val('');
+                alert('新密碼與確認不相符, 或密碼不可為空');
+            }
+        }
+        $(document).ready(function () {
+            $('#update').click(function () {
+                changePassword();
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -30,6 +30,24 @@ function FindAndUpdateUsersNumber(db) {
 	});
 }
 
+function FindAndUpdateSuperUsersNumber(db) {
+	return new Promise((resolve, reject) => {
+		var table = db.db('lock').collection('superusers');
+		var findThing = { name: 'SuperUsersCount' };
+		var updateThing = { $inc: { count: 1 } };
+		var set = { projection: { _id: 0 } };
+		table.findOneAndUpdate(findThing, updateThing, set, function (err, result) {
+			if (err) {
+				reject({ result: '伺服器連線錯誤' });
+				throw err;
+			}
+			if (result.ok == 1) resolve({ result: result.value.count });
+			else reject({ result: '系統錯誤,無法取得新使用者的編號' });
+		});
+	});
+}
+
+
 function randomString(digit) {
 	var x = '0123456789qwertyuioplkjhgfdsazxcvbnm';
 	var tmp = '';
@@ -76,6 +94,51 @@ router.post('/newUser', function (req, res) {
 				}
 				FindAndUpdateUsersNumber(db)
 					.then((pkg) => InsertNewUser(db, pkg, tag))
+					.then((pkg) => res.json(pkg))
+					.catch((error) => res.json(error))
+					.finally((pkg) => db.close());
+			}
+		);
+	} else res.json({ result: '帳號或密碼錯誤' });
+});
+
+function InsertNewSuperUser(db, pkg, tag) {
+	return new Promise((resolve, reject) => {
+		var new_ID = tag + '_' + pkg.result.toString();
+		var random_password = randomString(8);
+		var table = db.db('EW').collection('superuser_list');
+		table.insertOne(
+			{
+				ID: new_ID,
+				password: random_password,
+				first: true,
+			},
+			function (err, result) {
+				if (err) {
+					reject({ result: '伺服器連線錯誤' });
+					throw err;
+				}
+				resolve({ result: 'success', ID: new_ID, password: random_password });
+			}
+		);
+	});
+}
+
+router.post('/newSuperUser', function (req, res) {
+	var ID = req.body.ID;
+	var password = req.body.password;
+	var tag = req.body.tag;
+	if (core_ID == ID && core_password == password) {
+		MongoClient.connect(
+			Get('mongoPath') + 'lock',
+			{ useNewUrlParser: true, useUnifiedTopology: true },
+			function (err, db) {
+				if (err) {
+					res.json({ result: '伺服器連線錯誤' });
+					throw err;
+				}
+				FindAndUpdateSuperUsersNumber(db)
+					.then((pkg) => InsertNewSuperUser(db, pkg, tag))
 					.then((pkg) => res.json(pkg))
 					.catch((error) => res.json(error))
 					.finally((pkg) => db.close());

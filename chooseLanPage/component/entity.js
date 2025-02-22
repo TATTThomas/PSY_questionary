@@ -36,7 +36,7 @@ class entity extends Component {
 								fontSize: '150%',
 							}}
 						>
-							<a href='http://140.116.98.155:1337/'>中文</a>
+							<a href='http://127.0.0.1:1337/'>中文</a>
 						</Button>
 					</Col>
 					<Col span={4}>
@@ -53,7 +53,7 @@ class entity extends Component {
 								fontSize: '150%',
 							}}
 						>
-							<a href='http://140.116.98.155:1336/'>English</a>
+							<a href='http://127.0.0.1:1336/'>English</a>
 						</Button>
 					</Col>
 				</Row>

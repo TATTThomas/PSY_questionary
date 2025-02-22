@@ -264,4 +264,59 @@ router.post('/auth', (req, res) => {
 	);
 });
 
+function changePasswordCheckPassword(db, ID, password) {
+	return new Promise((resolve, reject) => {
+		var table = db.db('EW').collection('superuser_list');
+		table.findOne(
+			{ ID: ID },
+			{ projection: { _id: 0 } },
+			function (err, result) {
+				if (err) {
+					reject({ result: '伺服器連線錯誤' });
+					throw err;
+				}
+				if (result == null) reject({ result: '不存在此帳號' });
+				else if (result.password == password) resolve(1);
+				else reject({ result: '密碼錯誤' });
+			}
+		);
+	});
+}
+function changePasswordUpdatePassword(db, ID, new_password) {
+	return new Promise((resolve, reject) => {
+		var table = db.db('EW').collection('superuser_list');
+		table.updateOne(
+			{ ID: ID },
+			{ $set: { password: new_password } },
+			function (err, result) {
+				if (err) {
+					reject({ result: '伺服器連線錯誤' });
+					throw err;
+				}
+				resolve({ result: 'success' });
+			}
+		);
+	});
+}
+router.post('/changePassword', function (req, res) {
+	var ID = req.body.ID;
+	var password = req.body.password;
+	var new_password = req.body.new_password;
+	MongoClient.connect(
+		Get('mongoPath') + 'EW',
+		{ useNewUrlParser: true, useUnifiedTopology: true },
+		function (err, db) {
+			if (err) {
+				res.json({ result: '伺服器連線錯誤' });
+				throw err;
+			}
+			changePasswordCheckPassword(db, ID, password)
+				.then((pkg) => changePasswordUpdatePassword(db, ID, new_password))
+				.then((pkg) => res.json(pkg))
+				.catch((error) => res.json(error))
+				.finally((pkg) => db.close());
+		}
+	);
+});
+
 module.exports = router;
