@@ -5,6 +5,7 @@ var MongoClient = require('mongodb').MongoClient;
 const { Get } = require('./GetConst');
 const core_ID = Get('ID');
 const core_password = Get('password');
+const jumpBoard_license = ['basePage', 'GQPage', 'CQPage', 'QQPage'];
 
 /**************************************
  ./
@@ -109,47 +110,47 @@ router.post('/login', function (req, res) {
 		);
 });
 
-/**************************************
- ./base
-  **************************************/
-router.post('/base', function (req, res) {
+function jumpBoardCheckPassword(db, ID, password) {
+	return new Promise((resolve, reject) => {
+		var table = db.db('EW').collection('superuser_list');
+		table.findOne(
+			{ ID: ID },
+			{ projection: { _id: 0 } },
+			function (err, result) {
+				if (err) {
+					reject({ message: '伺服器連線錯誤' });
+					throw err;
+				}
+				if (result == null) reject({ message: '不存在此帳號' });
+				else if (result.password == password)
+					resolve({ ID: ID, password: password, data: 'NA' });
+				else reject({ message: '密碼錯誤' });
+			}
+		);
+	});
+}
+router.post('/jumpBoard', function (req, res) {
+	//上面有設jumpBoard_license
 	var ID = req.body.ID;
 	var password = req.body.password;
+	var goal = req.body.goal;
 	if (core_ID == ID && core_password == password)
-		res.render('basePage', { ID: ID, password: password });
-	else res.render('warming', { message: '帳號或密碼錯誤' });
+		res.render(goal, { ID: ID, password: password });
+	else if (jumpBoard_license.indexOf(goal) > -1)
+		MongoClient.connect(
+			Get('mongoPath') + 'EW',
+			{ useNewUrlParser: true, useUnifiedTopology: true },
+			function (err, db) {
+				if (err) {
+					res.render('warming', { message: '伺服器連線錯誤' });
+					throw err;
+				}
+				jumpBoardCheckPassword(db, ID, password)
+					.then((pkg) => res.render(goal, pkg))
+					.catch((error) => res.render('warming', error))
+					.finally((pkg) => db.close());
+			}
+		);
+	else res.render('warming', { message: '非法操作, 請聯絡網站管理員' });
 });
-/**************************************
- ./GQ
-  **************************************/
-router.post('/GQ', function (req, res) {
-	var ID = req.body.ID;
-	var password = req.body.password;
-	if (core_ID == ID && core_password == password)
-		res.render('GQPage', { ID: ID, password: password });
-	else res.render('warming', { message: '帳號或密碼錯誤' });
-});
-
-/**************************************
- ./QQ
-  **************************************/
-router.post('/QQ', function (req, res) {
-	var ID = req.body.ID;
-	var password = req.body.password;
-	if (core_ID == ID && core_password == password)
-		res.render('QQPage', { ID: ID, password: password });
-	else res.render('warming', { message: '帳號或密碼錯誤' });
-});
-
-/**************************************
- ./CQ
-  **************************************/
-router.post('/CQ', function (req, res) {
-	var ID = req.body.ID;
-	var password = req.body.password;
-	if (core_ID == ID && core_password == password)
-		res.render('CQPage', { ID: ID, password: password });
-	else res.render('warming', { message: '帳號或密碼錯誤' });
-});
-
 module.exports = router;

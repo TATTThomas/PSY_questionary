@@ -6,6 +6,20 @@ const { Get } = require('./GetConst');
 const core_ID = Get('ID');
 const core_password = Get('password');
 
+function validateUserCredentials(db, ID, password) {
+    return new Promise((resolve, reject) => {
+        var table = db.db('EW').collection('superuser_list');
+
+        table.findOne({ ID: ID }, { projection: { _id: 0, password: 1 } }, function (err, result) {
+            if (err) return reject({ result: '伺服器錯誤' });
+            if (!result) return reject({ result: '帳號不存在' });
+
+            if (result.password === password) resolve(); // 驗證成功
+            else reject({ result: '密碼錯誤' }); // 驗證失敗
+        });
+    });
+}
+
 /**************************************
 ./Get/table
 1. 測帳密
@@ -44,6 +58,13 @@ function FindCollection(db, DB, collection, fillterKey, fillterValue, type) {
 	});
 }
 
+function executeFindCollection(db, DB, collection, fillterKey, fillterValue, type, res) {
+    FindCollection(db, DB, collection, fillterKey, fillterValue, type)
+        .then((pkg) => res.json(pkg))
+        .catch((error) => res.json(error))
+        .finally(() => db.close());
+}
+
 router.post('/table', function (req, res) {
 	var ID = req.body.ID;
 	var password = req.body.password;
@@ -53,22 +74,30 @@ router.post('/table', function (req, res) {
 	var fillterValue = req.body.fillterValue;
 	var type = req.body.type;
 	//console.log(req.body);
-	if (core_ID == ID && core_password == password) {
-		MongoClient.connect(
-			Get('mongoPath') + DB,
-			{ useNewUrlParser: true, useUnifiedTopology: true },
-			function (err, db) {
-				if (err) {
-					res.json({ result: '伺服器連線錯誤' });
-					throw err;
-				}
-				FindCollection(db, DB, collection, fillterKey, fillterValue, type)
-					.then((pkg) => res.json(pkg))
-					.catch((error) => res.json(error))
-					.finally((pkg) => db.close());
-			}
-		);
-	} else res.json({ result: '帳號或密碼錯誤' });
+	MongoClient.connect(
+        Get('mongoPath') + DB,
+        { useNewUrlParser: true, useUnifiedTopology: true },
+        function (err, db) {
+            if (err) {
+                res.json({ result: '伺服器連線錯誤' });
+                throw err;
+            }
+
+            // **核心帳號可直接操作**
+            if (core_ID == ID && core_password == password) {
+                executeFindCollection(db, DB, collection, fillterKey, fillterValue, type, res);
+            } 
+            else {
+                // **一般帳號需通過密碼驗證**
+                validateUserCredentials(db, ID, password)
+                    .then(() => executeFindCollection(db, DB, collection, fillterKey, fillterValue, type, res))
+                    .catch((error) => {
+                        res.json(error);
+                        db.close();
+                    });
+            }
+        }
+    );
 });
 
 /********************************

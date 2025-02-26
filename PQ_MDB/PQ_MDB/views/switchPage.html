@@ -20,27 +20,31 @@
     </header>
     <div class="container" style="text-align:center">
         <br>
-        <form action="/base" method="post">
+        <form action="/jumpBoard" method="post">
             <input name="ID" type="text" value="<%=ID%>" style="display:none" />
             <input name="password" type="password" value="<%=password%>" style="display:none" />
+            <input name="goal" type="text" value="basePage" style="display:none" />
             <input type="submit" class="btn btn-primary" style="font-size:200%" value="基本管理頁" />
         </form>
         <br>
-        <form action="/GQ" method="post">
+        <form action="/jumpBoard" method="post">
             <input name="ID" type="text" value="<%=ID%>" style="display:none" />
             <input name="password" type="password" value="<%=password%>" style="display:none" />
+            <input name="goal" type="text" value="GQPage" style="display:none" />
             <input type="submit" class="btn btn-primary" style="font-size:200%" value="認知作業" />
         </form>
         <br>
-        <form action="/CQ" method="post">
+        <form action="/jumpBoard" method="post">
             <input name="ID" type="text" value="<%=ID%>" style="display:none" />
             <input name="password" type="password" value="<%=password%>" style="display:none" />
+            <input name="goal" type="text" value="CQPage" style="display:none" />
             <input type="submit" class="btn btn-primary" style="font-size:200%" value="認知訓練" />
         </form>
         <br>
-        <form action="/QQ" method="post">
+        <form action="/jumpBoard" method="post">
             <input name="ID" type="text" value="<%=ID%>" style="display:none" />
             <input name="password" type="password" value="<%=password%>" style="display:none" />
+            <input name="goal" type="text" value="QQPage" style="display:none" />
             <input type="submit" class="btn btn-primary" style="font-size:200%" value="問卷量表" />
         </form>
         <br>

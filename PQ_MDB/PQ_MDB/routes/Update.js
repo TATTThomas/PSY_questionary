@@ -43,6 +43,21 @@ const criticalNumber = [
 	'C10_2',
 	'C10_3',
 ]; //33
+
+function validateUserCredentials(db, ID, password) {
+    return new Promise((resolve, reject) => {
+        var table = db.db('EW').collection('superuser_list');
+
+        table.findOne({ ID: ID }, { projection: { _id: 0, password: 1 } }, function (err, result) {
+            if (err) return reject({ result: '伺服器錯誤' });
+            if (!result) return reject({ result: '帳號不存在' });
+
+            if (result.password === password) resolve(); // 驗證成功
+            else reject({ result: '密碼錯誤' }); // 驗證失敗
+        });
+    });
+}
+
 /**************************************
 ./Update/table
 1. 測帳密
@@ -112,33 +127,44 @@ function InsertJsonList(db, where, jsonList) {
 	});
 }
 
+function processTableRequest(db, where, data, res) {
+    if (table_license.indexOf(where) > -1) {
+        removeTable(db, where)
+            .then(() => InsertJsonList(db, where, CsvToJsonListTable(data, where)))
+            .then((pkg) => res.json(pkg))
+            .catch((error) => res.json(error));
+    } else {
+        res.json({ result: '無此操作權限' });
+    }
+}
+
 router.post('/table', function (req, res) {
 	var ID = req.body.ID;
 	var password = req.body.password;
 	var data = req.body.data;
 	var where = req.body.where;
 	//console.log(where);
-	if (core_ID == ID && core_password == password) {
-		MongoClient.connect(
-			Get('mongoPath') + 'data',
-			{ useNewUrlParser: true, useUnifiedTopology: true },
-			function (err, db) {
-				if (err) {
-					res.json({ result: '伺服器連線錯誤' });
-					throw err;
-				}
-				if (table_license.indexOf(where) > -1)
-					removeTable(db, where)
-						.then((pkg) =>
-							InsertJsonList(db, where, CsvToJsonListTable(data, where))
-						)
-						.then((pkg) => res.json(pkg))
-						.catch((error) => res.json(error))
-						.finally((pkg) => db.close());
-				else res.json({ result: '無此操作權限' });
+	
+	MongoClient.connect(
+		Get('mongoPath') + 'data',
+		{ useNewUrlParser: true, useUnifiedTopology: true },
+		function (err, db) {
+			if (err) {
+				res.json({ result: '伺服器連線錯誤' });
+				throw err;
 			}
-		);
-	} else res.json({ result: '帳號或密碼錯誤' });
+			if (core_ID == ID && core_password == password) {
+                processTableRequest(db, where, data, res);
+            } 
+            else {
+                // **一般帳號需通過密碼驗證**
+                validateUserCredentials(db, ID, password)
+                    .then(() => processTableRequest(db, where, data, res))
+                    .catch((error) => res.json(error))
+                    .finally(() => db.close());
+            }
+		}
+	);
 });
 
 /**************************************
@@ -167,34 +193,46 @@ function CsvToJsonListCritialNumber(CsvString, where) {
 	return jsonList;
 }
 
+function processCriticalNumber(db, where, data, res) {
+    if (criticalNumber_license.indexOf(where) > -1) {
+        removeTable(db, where)
+            .then((pkg) => InsertJsonList(db, where, CsvToJsonListCritialNumber(data, where)))
+            .then((pkg) => res.json(pkg))
+            .catch((error) => res.json(error))
+			.finally((pkg) => db.close());
+    } else {
+        res.json({ result: '無此操作權限' });
+    }
+}
+
 router.post('/criticalNumber', function (req, res) {
 	var ID = req.body.ID;
 	var password = req.body.password;
 	var data = req.body.data;
 	var where = req.body.where;
 	//console.log(data);
-	if (core_ID == ID && core_password == password) {
-		MongoClient.connect(
-			Get('mongoPath') + 'data',
-			{ useNewUrlParser: true, useUnifiedTopology: true },
-			function (err, db) {
-				if (err) {
-					res.json({ result: '伺服器連線錯誤' });
-					throw err;
-				}
-				if (criticalNumber_license.indexOf(where) > -1)
-					removeTable(db, where)
-						.then((pkg) =>
-							InsertJsonList(db, where, CsvToJsonListCritialNumber(data, where))
-						)
-						//.then(pkg => console.log(CsvToJsonListCritialNumber(data, where)))
-						.then((pkg) => res.json(pkg))
-						.catch((error) => res.json(error))
-						.finally((pkg) => db.close());
-				else res.json({ result: '無此操作權限' });
-			}
-		);
-	} else res.json({ result: '帳號或密碼錯誤' });
+	MongoClient.connect(
+        Get('mongoPath') + 'data',
+        { useNewUrlParser: true, useUnifiedTopology: true },
+        function (err, db) {
+            if (err) {
+                res.json({ result: '伺服器連線錯誤' });
+                throw err;
+            }
+
+            // **核心帳號可直接操作**
+            if (core_ID == ID && core_password == password) {
+                processCriticalNumber(db, where, data, res);
+            } 
+            else {
+                // **一般帳號需通過密碼驗證**
+                validateUserCredentials(db, ID, password)
+                    .then(() => processCriticalNumber(db, where, data, res))
+                    .catch((error) => res.json(error))
+                    .finally(() => db.close());
+            }
+        }
+    );
 });
 
 /**************************************
@@ -217,51 +255,61 @@ const updateAuth = (id, auth, table) => {
 	});
 };
 
+function processAuth(table, mode, peopleId, auth, res, db) {
+    switch (mode) {
+        case 'one':
+            updateAuth(peopleId, auth, table)
+                .then((result) => res.json(result))
+                .catch((err) => res.json(err))
+                .finally(() => db.close());
+            break;
+        case 'many':
+            const peopleIdList = peopleId.split('~');
+            const promiseList = peopleIdList.map((id) => updateAuth(id, auth, table));
+            Promise.all(promiseList)
+                .then(() => res.json({ result: 'success' }))
+                .catch((err) => res.json(err))
+                .finally(() => db.close());
+            break;
+        default:
+            res.json({ result: '無此操作權限' });
+            db.close();
+            break;
+    }
+}
+
 router.post('/auth', (req, res) => {
 	const ID = req.body.ID;
 	const password = req.body.password;
 	const mode = req.body.mode; //one 是一人, many是多人
 	const peopleId = req.body.peopleId; //多人時用波浪號分隔Id
 	const auth = req.body.auth;
-	if (core_ID != ID || core_password != password) {
-		res.json({ result: '帳號或密碼錯誤' });
-		return;
-	}
 	MongoClient.connect(
-		Get('mongoPath') + 'EW',
-		{ useNewUrlParser: true, useUnifiedTopology: true },
-		async (err, db) => {
-			if (err) {
-				res.json({ result: '伺服器連線錯誤' });
-				throw err;
-			}
-			var table = db.db('EW').collection('personal_information');
-			switch (mode) {
-				case 'one':
-					try {
-						const result = await updateAuth(peopleId, auth, table);
-						res.json(result);
-					} catch (err) {
-						res.json(err);
-					}
-					db.close();
-					break;
-				case 'many':
-					const peopleIdList = peopleId.split('~');
-					const promiseList = peopleIdList.map((id) => {
-						return updateAuth(id, auth, table);
-					});
-					Promise.all(promiseList)
-						.then((result) => res.json({ result: 'success' }))
-						.catch((err) => res.json(err))
-						.finally((pkg) => db.close());
-					break;
-				default:
-					res.json({ result: '無此操作權限' });
-					break;
-			}
-		}
-	);
+        Get('mongoPath') + 'EW',
+        { useNewUrlParser: true, useUnifiedTopology: true },
+        async (err, db) => {
+            if (err) {
+                res.json({ result: '伺服器連線錯誤' });
+                throw err;
+            }
+
+            var table = db.db('EW').collection('personal_information');
+
+            // **核心帳號可直接操作**
+            if (core_ID == ID && core_password == password) {
+                processAuth(table, mode, peopleId, auth, res, db);
+            } 
+            else {
+                // **一般帳號需通過密碼驗證**
+                validateUserCredentials(db, ID, password)
+                    .then(() => processAuth(table, mode, peopleId, auth, res, db))
+                    .catch((error) => {
+                        res.json(error);
+                        db.close();
+                    });
+            }
+        }
+    );
 });
 
 function changePasswordCheckPassword(db, ID, password) {

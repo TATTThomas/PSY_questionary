@@ -6,6 +6,20 @@ const { Get } = require('./GetConst');
 const core_ID = Get('ID');
 const core_password = Get('password');
 
+function validateUserCredentials(db, ID, password) {
+    return new Promise((resolve, reject) => {
+        var table = db.db('EW').collection('superuser_list');
+
+        table.findOne({ ID: ID }, { projection: { _id: 0, password: 1 } }, function (err, result) {
+            if (err) return reject({ result: '伺服器錯誤' });
+            if (!result) return reject({ result: '帳號不存在' });
+
+            if (result.password === password) resolve(); // 驗證成功
+            else reject({ result: '密碼錯誤' }); // 驗證失敗
+        });
+    });
+}
+
 /**************************************
 ./Create/newUser
 1. 測帳密
@@ -83,23 +97,32 @@ router.post('/newUser', function (req, res) {
 	var ID = req.body.ID;
 	var password = req.body.password;
 	var tag = req.body.tag;
-	if (core_ID == ID && core_password == password) {
-		MongoClient.connect(
-			Get('mongoPath') + 'lock',
-			{ useNewUrlParser: true, useUnifiedTopology: true },
-			function (err, db) {
-				if (err) {
-					res.json({ result: '伺服器連線錯誤' });
-					throw err;
-				}
-				FindAndUpdateUsersNumber(db)
-					.then((pkg) => InsertNewUser(db, pkg, tag))
-					.then((pkg) => res.json(pkg))
-					.catch((error) => res.json(error))
-					.finally((pkg) => db.close());
+	MongoClient.connect(
+		Get('mongoPath') + 'lock',
+		{ useNewUrlParser: true, useUnifiedTopology: true },
+		function (err, db) {
+			if (err) {
+				res.json({ result: '伺服器連線錯誤' });
+				throw err;
 			}
-		);
-	} else res.json({ result: '帳號或密碼錯誤' });
+			if (core_ID == ID && core_password == password){
+				FindAndUpdateUsersNumber(db)
+				.then((pkg) => InsertNewUser(db, pkg, tag))
+				.then((pkg) => res.json(pkg))
+				.catch((error) => res.json(error))
+				.finally((pkg) => db.close());
+			}
+			else{
+				validateUserCredentials(db, ID, password)
+				.then(() => FindAndUpdateUsersNumber(db))
+				.then((pkg) => InsertNewUser(db, pkg, tag))
+				.then((pkg) => res.json(pkg))
+				.catch((error) => res.json(error))
+				.finally((pkg) => db.close());
+			}
+			
+		}
+	);
 });
 
 function InsertNewSuperUser(db, pkg, tag) {
@@ -128,23 +151,31 @@ router.post('/newSuperUser', function (req, res) {
 	var ID = req.body.ID;
 	var password = req.body.password;
 	var tag = req.body.tag;
-	if (core_ID == ID && core_password == password) {
-		MongoClient.connect(
-			Get('mongoPath') + 'lock',
-			{ useNewUrlParser: true, useUnifiedTopology: true },
-			function (err, db) {
-				if (err) {
-					res.json({ result: '伺服器連線錯誤' });
-					throw err;
-				}
-				FindAndUpdateSuperUsersNumber(db)
-					.then((pkg) => InsertNewSuperUser(db, pkg, tag))
-					.then((pkg) => res.json(pkg))
-					.catch((error) => res.json(error))
-					.finally((pkg) => db.close());
+	MongoClient.connect(
+		Get('mongoPath') + 'lock',
+		{ useNewUrlParser: true, useUnifiedTopology: true },
+		function (err, db) {
+			if (err) {
+				res.json({ result: '伺服器連線錯誤' });
+				throw err;
 			}
-		);
-	} else res.json({ result: '帳號或密碼錯誤' });
+			if (core_ID == ID && core_password == password) {
+				FindAndUpdateSuperUsersNumber(db)
+				.then((pkg) => InsertNewSuperUser(db, pkg, tag))
+				.then((pkg) => res.json(pkg))
+				.catch((error) => res.json(error))
+				.finally((pkg) => db.close());
+			}
+			else{
+				validateUserCredentials(db, ID, password)
+				.then(() => FindAndUpdateSuperUsersNumber(db))
+				.then((pkg) => InsertNewSuperUser(db, pkg, tag))
+				.then((pkg) => res.json(pkg))
+				.catch((error) => res.json(error))
+				.finally((pkg) => db.close());
+			}
+		}
+	);
 });
 
 /**************************************
@@ -180,19 +211,28 @@ router.post('/ManynewUser', function (req, res) {
 	var password = req.body.password;
 	var tag = req.body.tag;
 	var count = req.body.count;
-	if (core_ID == ID && core_password == password) {
-		MongoClient.connect(
-			Get('mongoPath') + 'lock',
-			{ useNewUrlParser: true, useUnifiedTopology: true },
-			function (err, db) {
-				if (err) {
-					res.json({ result: '伺服器連線錯誤' });
-					throw err;
-				}
-				createMany(tag, count, db, res);
+	MongoClient.connect(
+		Get('mongoPath') + 'lock',
+		{ useNewUrlParser: true, useUnifiedTopology: true },
+		function (err, db) {
+			if (err) {
+				res.json({ result: '伺服器連線錯誤' });
+				throw err;
 			}
-		);
-	} else res.json({ result: '帳號或密碼錯誤' });
+			if (core_ID == ID && core_password == password) {
+                createMany(tag, count, db, res);
+            } 
+            else {
+                // **一般帳號需通過密碼驗證**
+                validateUserCredentials(db, ID, password)
+                    .then(() => createMany(tag, count, db, res))
+                    .catch((error) => {
+                        res.json(error);
+                        db.close();
+                    });
+            }
+		}
+	);
 });
 
 module.exports = router;
